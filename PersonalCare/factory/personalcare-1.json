@@ -1,0 +1,9 @@
+{
+	"name": "personalcare-1",
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "bbc78635-760c-4ac5-a0c8-00832a9c1f6a",
+		"tenantId": "ef2137f4-ef65-4d85-9a57-cd7bef8a4df8"
+	}
+}
