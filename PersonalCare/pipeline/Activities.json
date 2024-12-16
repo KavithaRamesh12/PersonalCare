@@ -1,0 +1,1095 @@
+{
+	"name": "Activities",
+	"properties": {
+		"activities": [
+			{
+				"name": "get_activities",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[[edw_metadata].[get_activities]",
+						"storedProcedureParameters": {
+							"pipeline_id": {
+								"type": "Int32",
+								"value": {
+									"value": "@pipeline().parameters.pipeline_id",
+									"type": "Expression"
+								}
+							},
+							"table_identifier_id": {
+								"type": "Int64",
+								"value": {
+									"value": "@pipeline().parameters.table_identifier_id",
+									"type": "Expression"
+								}
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "ForEach1",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "get_activities",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('get_activities').output.value",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"activities": [
+						{
+							"name": "Set Activity Running",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[[edw_metadata].[set_activity_running]",
+								"storedProcedureParameters": {
+									"activity_id": {
+										"value": {
+											"value": "@item().activity_id",
+											"type": "Expression"
+										},
+										"type": "Int64"
+									},
+									"pipeline_id": {
+										"value": {
+											"value": "@item().pipeline_id",
+											"type": "Expression"
+										},
+										"type": "Int64"
+									},
+									"table_identifier_id": {
+										"value": {
+											"value": "@item().table_identifier_id",
+											"type": "Expression"
+										},
+										"type": "Int64"
+									}
+								}
+							}
+						},
+						{
+							"name": "Switch1",
+							"type": "Switch",
+							"dependsOn": [
+								{
+									"activity": "Set Activity Running",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"on": {
+									"value": "@string(item().master_pipeline_id)",
+									"type": "Expression"
+								},
+								"cases": [
+									{
+										"value": "1",
+										"activities": [
+											{
+												"name": "LandingToStage activity",
+												"type": "ExecutePipeline",
+												"dependsOn": [
+													{
+														"activity": "get cluster id",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"waitOnCompletion": true,
+													"parameters": {
+														"cluster_id": {
+															"value": "@activity('get cluster id').output.firstRow.cluster_id",
+															"type": "Expression"
+														},
+														"parameter": {
+															"value": "@split(item().parameters, '->')[1]",
+															"type": "Expression"
+														}
+													}
+												}
+											},
+											{
+												"name": "Set Activity landing_to_stg success",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "LandingToStage activity",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[edw_metadata].[set_activity_success]",
+													"storedProcedureParameters": {
+														"activity_id": {
+															"value": {
+																"value": "@item().activity_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"activity_info": {
+															"value": {
+																"value": "@activity('LandingToStage activity').output.pipelineReturnValue.runPageURL",
+																"type": "Expression"
+															},
+															"type": "String"
+														},
+														"pipeline_id": {
+															"value": {
+																"value": "@item().pipeline_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"table_identifier_id": {
+															"value": {
+																"value": "@item().table_identifier_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														}
+													}
+												}
+											},
+											{
+												"name": "Set Activity landing_to_stg Failed",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "LandingToStage activity",
+														"dependencyConditions": [
+															"Failed"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[edw_metadata].[set_activity_failed]",
+													"storedProcedureParameters": {
+														"activity_id": {
+															"value": {
+																"value": "@item().activity_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"activity_info": {
+															"value": {
+																"value": "@activity('LandingToStage activity').output.pipelineReturnValue.runPageURL",
+																"type": "Expression"
+															},
+															"type": "String"
+														},
+														"pipeline_id": {
+															"value": {
+																"value": "@item().pipeline_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"table_identifier_id": {
+															"value": {
+																"value": "@item().table_identifier_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														}
+													}
+												}
+											},
+											{
+												"name": "Fail1",
+												"type": "Fail",
+												"dependsOn": [
+													{
+														"activity": "LandingToStage activity",
+														"dependencyConditions": [
+															"Failed"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"message": "landing to stage Failed",
+													"errorCode": "000"
+												}
+											},
+											{
+												"name": "get cluster id",
+												"type": "Lookup",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "AzureSqlSource",
+														"sqlReaderStoredProcedureName": "[[edw_metadata].[get_cluster_id]",
+														"storedProcedureParameters": {
+															"db_config_id": {
+																"type": "Int32",
+																"value": {
+																	"value": "@item().db_config_id",
+																	"type": "Expression"
+																}
+															}
+														},
+														"queryTimeout": "02:00:00",
+														"partitionOption": "None"
+													}
+												}
+											}
+										]
+									},
+									{
+										"value": "2",
+										"activities": [
+											{
+												"name": "Clean",
+												"type": "ExecutePipeline",
+												"dependsOn": [
+													{
+														"activity": "get cluster id - rbc",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"waitOnCompletion": true,
+													"parameters": {
+														"cluster_id": {
+															"value": "@activity('get cluster id - rbc').output.firstRow.cluster_id",
+															"type": "Expression"
+														},
+														"parameter": {
+															"value": "@split(item().parameters, '->')[1]",
+															"type": "Expression"
+														}
+													}
+												}
+											},
+											{
+												"name": "Set Activity clean success",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "Clean",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[edw_metadata].[set_activity_success]",
+													"storedProcedureParameters": {
+														"activity_id": {
+															"value": {
+																"value": "@item().activity_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"activity_info": {
+															"value": {
+																"value": "@activity('Clean').output.pipelineReturnValue.runPageURL",
+																"type": "Expression"
+															},
+															"type": "String"
+														},
+														"pipeline_id": {
+															"value": {
+																"value": "@item().pipeline_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"table_identifier_id": {
+															"value": {
+																"value": "@item().table_identifier_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														}
+													}
+												}
+											},
+											{
+												"name": "Set Activity clean Failed",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "Clean",
+														"dependencyConditions": [
+															"Failed"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[edw_metadata].[set_activity_failed]",
+													"storedProcedureParameters": {
+														"activity_id": {
+															"value": {
+																"value": "@item().activity_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"activity_info": {
+															"value": {
+																"value": "@activity('Clean').output.pipelineReturnValue.runPageURL",
+																"type": "Expression"
+															},
+															"type": "String"
+														},
+														"pipeline_id": {
+															"value": {
+																"value": "@item().pipeline_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"table_identifier_id": {
+															"value": {
+																"value": "@item().table_identifier_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														}
+													}
+												}
+											},
+											{
+												"name": "Fail_clean",
+												"type": "Fail",
+												"dependsOn": [
+													{
+														"activity": "Clean",
+														"dependencyConditions": [
+															"Failed"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"message": "RBC activity Failed",
+													"errorCode": "NA"
+												}
+											},
+											{
+												"name": "get cluster id - rbc",
+												"type": "Lookup",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "AzureSqlSource",
+														"sqlReaderStoredProcedureName": "[[edw_metadata].[get_cluster_id]",
+														"storedProcedureParameters": {
+															"db_config_id": {
+																"type": "Int32",
+																"value": {
+																	"value": "@item().db_config_id",
+																	"type": "Expression"
+																}
+															}
+														},
+														"queryTimeout": "02:00:00",
+														"partitionOption": "None"
+													}
+												}
+											}
+										]
+									},
+									{
+										"value": "3",
+										"activities": [
+											{
+												"name": "Dedup",
+												"type": "ExecutePipeline",
+												"dependsOn": [
+													{
+														"activity": "get cluster id - dedup",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"waitOnCompletion": true,
+													"parameters": {
+														"cluster_id": {
+															"value": "@activity('get cluster id - dedup').output.firstRow.cluster_id",
+															"type": "Expression"
+														},
+														"parameter": {
+															"value": "@split(item().parameters, '->')[1]",
+															"type": "Expression"
+														}
+													}
+												}
+											},
+											{
+												"name": "Set Activity dedup success",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "Dedup",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[edw_metadata].[set_activity_success]",
+													"storedProcedureParameters": {
+														"activity_id": {
+															"value": {
+																"value": "@item().activity_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"activity_info": {
+															"value": {
+																"value": "@activity('Dedup').output.pipelineReturnValue.runPageURL",
+																"type": "Expression"
+															},
+															"type": "String"
+														},
+														"pipeline_id": {
+															"value": {
+																"value": "@item().pipeline_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"table_identifier_id": {
+															"value": {
+																"value": "@item().table_identifier_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														}
+													}
+												}
+											},
+											{
+												"name": "Set Activity dedup Failed",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "Dedup",
+														"dependencyConditions": [
+															"Failed"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[edw_metadata].[set_activity_failed]",
+													"storedProcedureParameters": {
+														"activity_id": {
+															"value": {
+																"value": "@item().activity_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"activity_info": {
+															"value": {
+																"value": "@activity('Dedup').output.pipelineReturnValue.runPageURL",
+																"type": "Expression"
+															},
+															"type": "String"
+														},
+														"pipeline_id": {
+															"value": {
+																"value": "@item().pipeline_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"table_identifier_id": {
+															"value": {
+																"value": "@item().table_identifier_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														}
+													}
+												}
+											},
+											{
+												"name": "get cluster id - dedup",
+												"type": "Lookup",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "AzureSqlSource",
+														"sqlReaderStoredProcedureName": "[[edw_metadata].[get_cluster_id]",
+														"storedProcedureParameters": {
+															"db_config_id": {
+																"type": "Int32",
+																"value": {
+																	"value": "@item().db_config_id",
+																	"type": "Expression"
+																}
+															}
+														},
+														"queryTimeout": "02:00:00",
+														"partitionOption": "None"
+													}
+												}
+											},
+											{
+												"name": "Fail2",
+												"type": "Fail",
+												"dependsOn": [
+													{
+														"activity": "Dedup",
+														"dependencyConditions": [
+															"Failed"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"message": "Dedup failed",
+													"errorCode": "0000"
+												}
+											}
+										]
+									},
+									{
+										"value": "4",
+										"activities": [
+											{
+												"name": "transformation",
+												"type": "ExecutePipeline",
+												"dependsOn": [
+													{
+														"activity": "get cluster id - transformation",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"waitOnCompletion": true,
+													"parameters": {
+														"cluster_id": {
+															"value": "@activity('get cluster id - transformation').output.firstRow.cluster_id",
+															"type": "Expression"
+														},
+														"parameter": {
+															"value": "@split(item().parameters, '->')[1]",
+															"type": "Expression"
+														}
+													}
+												}
+											},
+											{
+												"name": "Set Activity transformation success",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "transformation",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[edw_metadata].[set_activity_success]",
+													"storedProcedureParameters": {
+														"activity_id": {
+															"value": {
+																"value": "@item().activity_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"activity_info": {
+															"value": {
+																"value": "@activity('transformation').output.pipelineReturnValue.runPageURL",
+																"type": "Expression"
+															},
+															"type": "String"
+														},
+														"pipeline_id": {
+															"value": {
+																"value": "@item().pipeline_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"table_identifier_id": {
+															"value": {
+																"value": "@item().table_identifier_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														}
+													}
+												}
+											},
+											{
+												"name": "Set Activity transformation Failed",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "transformation",
+														"dependencyConditions": [
+															"Failed"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[edw_metadata].[set_activity_failed]",
+													"storedProcedureParameters": {
+														"activity_id": {
+															"value": {
+																"value": "@item().activity_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"activity_info": {
+															"value": {
+																"value": "@activity('transformation').output.pipelineReturnValue.runPageURL",
+																"type": "Expression"
+															},
+															"type": "String"
+														},
+														"pipeline_id": {
+															"value": {
+																"value": "@item().pipeline_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"table_identifier_id": {
+															"value": {
+																"value": "@item().table_identifier_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														}
+													}
+												}
+											},
+											{
+												"name": "Fail_transformation",
+												"type": "Fail",
+												"dependsOn": [
+													{
+														"activity": "transformation",
+														"dependencyConditions": [
+															"Failed"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"message": "transformation activity Failed",
+													"errorCode": "NA"
+												}
+											},
+											{
+												"name": "get cluster id - transformation",
+												"type": "Lookup",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "AzureSqlSource",
+														"sqlReaderStoredProcedureName": "[[edw_metadata].[get_cluster_id]",
+														"storedProcedureParameters": {
+															"db_config_id": {
+																"type": "Int32",
+																"value": {
+																	"value": "@item().db_config_id",
+																	"type": "Expression"
+																}
+															}
+														},
+														"queryTimeout": "02:00:00",
+														"partitionOption": "None"
+													}
+												}
+											}
+										]
+									},
+									{
+										"value": "5",
+										"activities": [
+											{
+												"name": "target",
+												"type": "ExecutePipeline",
+												"dependsOn": [
+													{
+														"activity": "get cluster id - target",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"waitOnCompletion": true,
+													"parameters": {
+														"cluster_id": {
+															"value": "@activity('get cluster id - target').output.firstRow.cluster_id",
+															"type": "Expression"
+														},
+														"parameter": {
+															"value": "@split(item().parameters, '->')[1]",
+															"type": "Expression"
+														}
+													}
+												}
+											},
+											{
+												"name": "Set Activity target success",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "target",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[edw_metadata].[set_activity_success]",
+													"storedProcedureParameters": {
+														"activity_id": {
+															"value": {
+																"value": "@item().activity_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"activity_info": {
+															"value": {
+																"value": "@activity('target').output.pipelineReturnValue.runPageURL",
+																"type": "Expression"
+															},
+															"type": "String"
+														},
+														"pipeline_id": {
+															"value": {
+																"value": "@item().pipeline_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"table_identifier_id": {
+															"value": {
+																"value": "@item().table_identifier_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														}
+													}
+												}
+											},
+											{
+												"name": "Set Activity target Failed",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "target",
+														"dependencyConditions": [
+															"Failed"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[edw_metadata].[set_activity_failed]",
+													"storedProcedureParameters": {
+														"activity_id": {
+															"value": {
+																"value": "@item().activity_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"activity_info": {
+															"value": {
+																"value": "@activity('target').output.pipelineReturnValue.runPageURL",
+																"type": "Expression"
+															},
+															"type": "String"
+														},
+														"pipeline_id": {
+															"value": {
+																"value": "@item().pipeline_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"table_identifier_id": {
+															"value": {
+																"value": "@item().table_identifier_id",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														}
+													}
+												}
+											},
+											{
+												"name": "Fail_target",
+												"type": "Fail",
+												"dependsOn": [
+													{
+														"activity": "target",
+														"dependencyConditions": [
+															"Failed"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"message": "transformation activity Failed",
+													"errorCode": "NA"
+												}
+											},
+											{
+												"name": "get cluster id - target",
+												"type": "Lookup",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "AzureSqlSource",
+														"sqlReaderStoredProcedureName": "[[edw_metadata].[get_cluster_id]",
+														"storedProcedureParameters": {
+															"db_config_id": {
+																"type": "Int32",
+																"value": {
+																	"value": "@item().db_config_id",
+																	"type": "Expression"
+																}
+															}
+														},
+														"queryTimeout": "02:00:00",
+														"partitionOption": "None"
+													}
+												}
+											}
+										]
+									}
+								]
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"pipeline_id": {
+				"type": "string"
+			},
+			"table_identifier_id": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"error": {
+				"type": "String"
+			},
+			"test": {
+				"type": "String"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2023-09-28T17:20:48Z"
+	},
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"AzureSqlDatabase1": {
+			"type": "string"
+		},
+		"AzureDatabricks": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	}
+}
