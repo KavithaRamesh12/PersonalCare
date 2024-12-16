@@ -8,8 +8,20 @@
 		"AzureDatabricks1_accessToken": {
 			"value": ""
 		},
+		"AzureSqlDatabase1_password": {
+			"value": ""
+		},
 		"AzureDatabricks1_properties_typeProperties_existingClusterId": {
 			"value": "1213-064913-8m0ggdyo"
+		},
+		"AzureSqlDatabase1_properties_typeProperties_server": {
+			"value": "personalcaredatabase-1.database.windows.net"
+		},
+		"AzureSqlDatabase1_properties_typeProperties_database": {
+			"value": "Pcdatabase-1"
+		},
+		"AzureSqlDatabase1_properties_typeProperties_userName": {
+			"value": "pccare1"
 		}
 	}
 }
