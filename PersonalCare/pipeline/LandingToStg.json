@@ -18,7 +18,7 @@
 					"notebookPath": "/Users/kavithabalasubramaniyan01@gmail.com/fn_landing_to_stage_1",
 					"baseParameters": {
 						"data_file_name": {
-							"value": "lv_pc_1.edw_stg.sales_details",
+							"value": "sales_detail.csv",
 							"type": "Expression"
 						}
 					}
