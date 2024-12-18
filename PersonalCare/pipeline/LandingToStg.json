@@ -15,7 +15,7 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"notebookPath": "/Shared/ETL_Framework/LandingtoStage/fn_landing_to_stage",
+					"notebookPath": "/Users/kavithabalasubramaniyan01@gmail.com/fn_landing_to_stage_1",
 					"baseParameters": {
 						"data_file_name": {
 							"value": "@pipeline().parameters.parameter",
