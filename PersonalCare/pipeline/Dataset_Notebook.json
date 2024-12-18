@@ -75,17 +75,11 @@
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"waitOnCompletion": true,
-								"parameters": {
-									"pipeline_id": {
-										"value": "@item().pipeline_id",
-										"type": "Expression"
-									},
-									"table_identifier_id": {
-										"value": "@pipeline().parameters.table_identifier_id",
-										"type": "Expression"
-									}
-								}
+								"pipeline": {
+									"referenceName": "Activities",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true
 							}
 						},
 						{
@@ -267,7 +261,6 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"storedProcedureName": "[[edw_metadata].[integrity_checks]",
 					"storedProcedureParameters": {
 						"table_identifier_id": {
 							"value": {
@@ -277,6 +270,10 @@
 							"type": "Int64"
 						}
 					}
+				},
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
 				}
 			},
 			{
