@@ -32,7 +32,7 @@
 		"parameters": {
 			"data_file_name": {
 				"type": "String",
-				"defaultValue": "@pipeline().parameters.parameter"
+				"defaultValue": "lv_pc_1.edw_stg.sales_details"
 			}
 		},
 		"annotations": [],
