@@ -27,61 +27,12 @@
 					"referenceName": "AzureDatabricks1",
 					"type": "LinkedServiceReference"
 				}
-			},
-			{
-				"name": "PageRunURL",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Landing to stage",
-						"dependencyConditions": [
-							"Completed"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "pipelineReturnValue",
-					"value": [
-						{
-							"key": "runPageURL",
-							"value": {
-								"type": "Expression",
-								"content": "@activity('Landing to stage').output.runPageUrl"
-							}
-						}
-					],
-					"setSystemVariable": true
-				}
-			},
-			{
-				"name": "Fail1",
-				"type": "Fail",
-				"dependsOn": [
-					{
-						"activity": "Landing to stage",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"message": "Failure occured in Landing to stage",
-					"errorCode": "NA"
-				}
 			}
 		],
 		"parameters": {
-			"cluster_id": {
-				"type": "String"
-			},
-			"parameter": {
-				"type": "string"
+			"data_file_name": {
+				"type": "String",
+				"defaultValue": "@pipeline().parameters.parameter"
 			}
 		},
 		"annotations": [],
