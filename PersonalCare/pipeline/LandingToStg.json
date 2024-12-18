@@ -31,8 +31,8 @@
 		],
 		"parameters": {
 			"data_file_name": {
-				"type": "String",
-				"defaultValue": "lv_pc_1.edw_stg.sales_details"
+				"type": "string",
+				"defaultValue": "sales_detail.csv"
 			}
 		},
 		"annotations": [],
